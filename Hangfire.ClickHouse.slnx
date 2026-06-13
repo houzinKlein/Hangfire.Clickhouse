@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/tests/">
+    <Project Path="tests/Hangfire.ClickHouse.Tests/Hangfire.ClickHouse.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net10.0;net8.0</TargetFrameworks>
+    <AssemblyName>Hangfire.ClickHouse</AssemblyName>
+    <RootNamespace>Hangfire.ClickHouse</RootNamespace>
+  </PropertyGroup>
+
+  <!-- NuGet package metadata -->
+  <PropertyGroup>
+    <PackageId>Hangfire.ClickHouse</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>SA</Authors>
+    <Title>Hangfire ClickHouse Storage</Title>
+    <Description>ClickHouse job storage implementation for Hangfire. Provides JobStorage, connection, write-only transaction, monitoring API, a polling job queue, and background maintenance (expiration, counter aggregation) on top of the Octonica ClickHouse client.</Description>
+    <PackageTags>Hangfire;ClickHouse;Storage;Jobs;Background;Queue;Octonica</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryType>git</RepositoryType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PackageReleaseNotes>Initial 0.1.0 preview: full Hangfire storage SPI on ClickHouse. Pre-1.0 — the API and schema may change before a stable 1.0 release.</PackageReleaseNotes>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Hangfire.Core" Version="1.8.23" />
+    <PackageReference Include="Octonica.ClickHouseClient" Version="4.1.4" />
+    <!-- Override Hangfire.Core's vulnerable transitive Newtonsoft.Json 11.0.1 floor. -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Hangfire.ClickHouse.Tests" />
+  </ItemGroup>
+
+</Project>

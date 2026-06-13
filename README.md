@@ -1,5 +1,9 @@
 # Hangfire.ClickHouse
 
+[![CI](https://github.com/houzinKlein/Hangfire.Clickhouse/actions/workflows/ci.yml/badge.svg)](https://github.com/houzinKlein/Hangfire.Clickhouse/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Hangfire.ClickHouse.svg)](https://www.nuget.org/packages/Hangfire.ClickHouse)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 ClickHouse job storage for [Hangfire](https://www.hangfire.io/). It implements the full
 Hangfire storage SPI (`JobStorage`, connection, write-only transaction, monitoring API),
 a polling job queue, and background maintenance (record expiration and counter

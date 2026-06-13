@@ -10,17 +10,26 @@
   <PropertyGroup>
     <PackageId>Hangfire.ClickHouse</PackageId>
     <Version>0.1.0</Version>
-    <Authors>SA</Authors>
+    <Authors>houzinKlein</Authors>
+    <Copyright>Copyright © houzinKlein</Copyright>
     <Title>Hangfire ClickHouse Storage</Title>
     <Description>ClickHouse job storage implementation for Hangfire. Provides JobStorage, connection, write-only transaction, monitoring API, a polling job queue, and background maintenance (expiration, counter aggregation) on top of the Octonica ClickHouse client.</Description>
     <PackageTags>Hangfire;ClickHouse;Storage;Jobs;Background;Queue;Octonica</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/houzinKlein/Hangfire.Clickhouse</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/houzinKlein/Hangfire.Clickhouse</PackageProjectUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <PackageReleaseNotes>Initial 0.1.0 preview: full Hangfire storage SPI on ClickHouse. Pre-1.0 — the API and schema may change before a stable 1.0 release.</PackageReleaseNotes>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+    <!-- SourceLink: embed repo + commit so consumers can debug into the package.
+         .NET 8+ SDKs include the GitHub SourceLink provider automatically. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <DebugType>portable</DebugType>
   </PropertyGroup>
 
   <ItemGroup>

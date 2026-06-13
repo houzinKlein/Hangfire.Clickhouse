@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest # ubuntu runners ship with Docker, required by the Testcontainers tests
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+      DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+      # Ryuk (the Testcontainers reaper) is unnecessary on ephemeral CI VMs and can be flaky there.
+      TESTCONTAINERS_RYUK_DISABLED: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore -p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        # Pulls clickhouse/clickhouse-server:24.12 on first run; integration tests need a real server.
+        run: dotnet test -c Release --no-build --verbosity normal
+
+      - name: Pack
+        run: dotnet pack src/Hangfire.ClickHouse/Hangfire.ClickHouse.csproj -c Release --no-build -o artifacts
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: artifacts/*.nupkg
+          if-no-files-found: error

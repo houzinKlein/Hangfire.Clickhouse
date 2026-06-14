@@ -16,4 +16,8 @@
     <PackageReference Include="Testcontainers" Version="4.12.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../../src/Hangfire.ClickHouse/Hangfire.ClickHouse.csproj" />
+  </ItemGroup>
+
 </Project>

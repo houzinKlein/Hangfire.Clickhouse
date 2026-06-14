@@ -39,7 +39,9 @@ jobs:
         run: dotnet test -c Release --no-build --verbosity normal
 
       - name: Pack
-        run: dotnet pack src/Hangfire.ClickHouse/Hangfire.ClickHouse.csproj -c Release --no-build -o artifacts
+        # Not --no-build: a solution-level build doesn't leave the per-TFM library output
+        # where project-level "pack --no-build" looks (NU5026); let pack do an incremental build.
+        run: dotnet pack src/Hangfire.ClickHouse/Hangfire.ClickHouse.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true -o artifacts
 
       - name: Upload package
         uses: actions/upload-artifact@v4

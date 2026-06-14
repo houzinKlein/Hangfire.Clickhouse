@@ -52,7 +52,8 @@ jobs:
         run: dotnet test -c Release --no-build
 
       - name: Pack
-        run: dotnet pack src/Hangfire.ClickHouse/Hangfire.ClickHouse.csproj -c Release --no-build -p:Version=${{ steps.version.outputs.version }} -o artifacts
+        # Not --no-build (NU5026): let pack do an incremental build so the per-TFM output exists.
+        run: dotnet pack src/Hangfire.ClickHouse/Hangfire.ClickHouse.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true -p:Version=${{ steps.version.outputs.version }} -o artifacts
 
       # Exchanges the GitHub OIDC token for a short-lived NuGet API key.
       # Requires a Trusted Publishing policy on nuget.org and the NUGET_USER repo variable.

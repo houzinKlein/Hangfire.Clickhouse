@@ -7,9 +7,12 @@ All notable changes to this project are documented here. The format is based on
 ## [0.3.0]
 
 ### Changed
-- **Assembly and namespace renamed to `HangfireCH`** (were `Hangfire.ClickHouse`) so the package
-  ID, assembly, and namespace all match. Update `using Hangfire.ClickHouse;` to `using HangfireCH;`;
-  `UseClickHouseStorage(...)` is still found via `using Hangfire;`. Breaking, but pre-1.0.
+- **Published NuGet package ID is now `HGF.ClickHouse`.** The `Hangfire.*` ID prefix is reserved
+  on nuget.org, so neither `Hangfire.ClickHouse` nor a dotted variant could be listed. Install with
+  `dotnet add package HGF.ClickHouse`.
+- **Assembly and namespace renamed to `HangfireCH`** (were `Hangfire.ClickHouse`). Update
+  `using Hangfire.ClickHouse;` to `using HangfireCH;`; `UseClickHouseStorage(...)` is still found via
+  `using Hangfire;`. Breaking, but pre-1.0.
 
 ## [0.2.1]
 

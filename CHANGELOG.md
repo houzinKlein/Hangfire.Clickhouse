@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor versions may carry breaking changes).
 
+## [0.2.1]
+
+### Changed
+- **NuGet package ID is now `HangfireCH`.** The `Hangfire.*` ID prefix is reserved on
+  nuget.org, so `Hangfire.ClickHouse` could not be listed. The assembly name and code
+  namespace remain `Hangfire.ClickHouse`, so consuming code (`using Hangfire.ClickHouse;`,
+  `UseClickHouseStorage(...)`) is unchanged — only the `PackageReference` ID changes.
+
 ## [Unreleased]
 
 ### Added

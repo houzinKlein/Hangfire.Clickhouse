@@ -8,8 +8,10 @@
 
   <!-- NuGet package metadata -->
   <PropertyGroup>
-    <PackageId>Hangfire.ClickHouse</PackageId>
-    <Version>0.2.0</Version>
+    <!-- The 'Hangfire.' ID prefix is reserved on nuget.org; this package publishes as
+         'HangfireCH'. The code namespace/assembly stay Hangfire.ClickHouse. -->
+    <PackageId>HangfireCH</PackageId>
+    <Version>0.2.1</Version>
     <Authors>houzinKlein</Authors>
     <Copyright>Copyright © houzinKlein</Copyright>
     <Title>Hangfire ClickHouse Storage</Title>

@@ -64,11 +64,13 @@ jobs:
           user: ${{ vars.NUGET_USER }}
 
       - name: Push to NuGet.org
+        # No --skip-duplicate: it silently swallows nuget.org's 409 (including the spurious
+        # "already exists" gallery bug, NuGetGallery#9886), turning a non-publish into a green
+        # run. Fail loudly so the real push result is visible in the log.
         run: >
           dotnet nuget push "artifacts/*.nupkg"
           --api-key "${{ steps.login.outputs.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
-          --skip-duplicate
 
       - name: Create or update GitHub Release
         if: startsWith(github.ref, 'refs/tags/')

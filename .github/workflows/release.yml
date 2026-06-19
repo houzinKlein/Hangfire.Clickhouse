@@ -55,15 +55,33 @@ jobs:
         # Not --no-build (NU5026): let pack do an incremental build so the per-TFM output exists.
         run: dotnet pack src/HangfireCH/HangfireCH.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true -p:Version=${{ steps.version.outputs.version }} -o artifacts
 
+      # Idempotent re-tags: if this version is already on nuget.org, skip publishing (but still
+      # refresh the GitHub Release below). This keeps --skip-duplicate off so a genuine push
+      # failure for a NEW version still fails loudly.
+      - name: Skip publish if version already on NuGet
+        id: published
+        run: |
+          pkg="hgf.clickhouse"
+          ver="${{ steps.version.outputs.version }}"
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://api.nuget.org/v3-flatcontainer/$pkg/$ver/$pkg.$ver.nupkg")
+          if [ "$code" = "200" ]; then
+            echo "$pkg $ver already published — skipping NuGet push."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Exchanges the GitHub OIDC token for a short-lived NuGet API key.
       # Requires a Trusted Publishing policy on nuget.org and the NUGET_USER repo variable.
       - name: NuGet login (Trusted Publishing)
         id: login
+        if: steps.published.outputs.skip != 'true'
         uses: NuGet/login@v1
         with:
           user: ${{ vars.NUGET_USER }}
 
       - name: Push to NuGet.org
+        if: steps.published.outputs.skip != 'true'
         # No --skip-duplicate: it silently swallows nuget.org's 409 (including the spurious
         # "already exists" gallery bug, NuGetGallery#9886), turning a non-publish into a green
         # run. Fail loudly so the real push result is visible in the log.

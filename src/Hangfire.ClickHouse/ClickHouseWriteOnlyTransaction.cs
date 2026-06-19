@@ -125,7 +125,16 @@ internal sealed class ClickHouseWriteOnlyTransaction : JobStorageTransaction
     public override void AddRangeToSet(string key, IList<string> items)
     {
         if (items is null) throw new ArgumentNullException(nameof(items));
-        foreach (var item in items) AddToSet(key, item, 0.0);
+        if (items.Count == 0) return;
+
+        var rows = new List<object?[]>(items.Count);
+        foreach (var item in items)
+            rows.Add(new object?[] { key, item, 0.0, null, (byte)0, ClickHouseVersionClock.Next() });
+
+        Enqueue(c => c.InsertRows(Schema.Set,
+            new[] { "key", "value", "score", "expire_at", "removed", "ver" },
+            new[] { "String", "String", "Float64", "Nullable(DateTime64(6))", "UInt8", "UInt64" },
+            rows, _storage.Options.BatchWrites));
     }
 
     public override void RemoveFromSet(string key, string value)
@@ -176,16 +185,15 @@ internal sealed class ClickHouseWriteOnlyTransaction : JobStorageTransaction
     public override void SetRangeInHash(string key, IEnumerable<KeyValuePair<string, string>> keyValuePairs)
     {
         if (keyValuePairs is null) throw new ArgumentNullException(nameof(keyValuePairs));
-        var pairs = new List<KeyValuePair<string, string>>(keyValuePairs);
 
-        Enqueue(c =>
-        {
-            foreach (var pair in pairs)
-                c.ExecuteNonQuery(
-                    $@"INSERT INTO {Schema.Hash} (key, field, value, expire_at, removed, ver)
-                       VALUES ({{key:String}}, {{field:String}}, {{value:Nullable(String)}}, NULL, 0, {{ver:UInt64}})",
-                    ("key", key), ("field", pair.Key), ("value", (object?)pair.Value), ("ver", ClickHouseVersionClock.Next()));
-        });
+        var rows = new List<object?[]>();
+        foreach (var pair in keyValuePairs)
+            rows.Add(new object?[] { key, pair.Key, pair.Value, null, (byte)0, ClickHouseVersionClock.Next() });
+
+        Enqueue(c => c.InsertRows(Schema.Hash,
+            new[] { "key", "field", "value", "expire_at", "removed", "ver" },
+            new[] { "String", "String", "Nullable(String)", "Nullable(DateTime64(6))", "UInt8", "UInt64" },
+            rows, _storage.Options.BatchWrites));
     }
 
     public override void RemoveHash(string key)

@@ -29,6 +29,9 @@ internal sealed class ClickHouseStorageConnection : JobStorageConnection
     {
         if (resource is null) throw new ArgumentNullException(nameof(resource));
 
+        if (_storage.Options.UseKeeperMap)
+            return ClickHouseKeeperMap.AcquireLock(_storage, resource, timeout);
+
         var owner = Guid.NewGuid().ToString("N");
         var ttlSeconds = (long)_storage.Options.DistributedLockExpiration.TotalSeconds;
         var deadline = DateTime.UtcNow + timeout;
@@ -109,13 +112,14 @@ internal sealed class ClickHouseStorageConnection : JobStorageConnection
                    VALUES ({{id:String}}, {{expire:Nullable(DateTime64(6))}}, {{ver:UInt64}})",
                 ("id", jobId), ("expire", createdAt.ToUniversalTime().Add(expireIn)), ("ver", ClickHouseVersionClock.Next()));
 
+            var parameterRows = new List<object?[]>();
             foreach (var parameter in parameters)
-            {
-                connection.ExecuteNonQuery(
-                    $@"INSERT INTO {Schema.JobParameter} (job_id, name, value, ver)
-                       VALUES ({{id:String}}, {{name:String}}, {{value:Nullable(String)}}, {{ver:UInt64}})",
-                    ("id", jobId), ("name", parameter.Key), ("value", (object?)parameter.Value), ("ver", ClickHouseVersionClock.Next()));
-            }
+                parameterRows.Add(new object?[] { jobId, parameter.Key, parameter.Value, ClickHouseVersionClock.Next() });
+
+            connection.InsertRows(Schema.JobParameter,
+                new[] { "job_id", "name", "value", "ver" },
+                new[] { "String", "String", "Nullable(String)", "UInt64" },
+                parameterRows, _storage.Options.BatchWrites);
         });
 
         return jobId;
@@ -448,16 +452,14 @@ internal sealed class ClickHouseStorageConnection : JobStorageConnection
         if (key is null) throw new ArgumentNullException(nameof(key));
         if (keyValuePairs is null) throw new ArgumentNullException(nameof(keyValuePairs));
 
-        _storage.UseConnection(connection =>
-        {
-            foreach (var pair in keyValuePairs)
-            {
-                connection.ExecuteNonQuery(
-                    $@"INSERT INTO {Schema.Hash} (key, field, value, expire_at, removed, ver)
-                       VALUES ({{key:String}}, {{field:String}}, {{value:Nullable(String)}}, NULL, 0, {{ver:UInt64}})",
-                    ("key", key), ("field", pair.Key), ("value", (object?)pair.Value), ("ver", ClickHouseVersionClock.Next()));
-            }
-        });
+        var rows = new List<object?[]>();
+        foreach (var pair in keyValuePairs)
+            rows.Add(new object?[] { key, pair.Key, pair.Value, null, (byte)0, ClickHouseVersionClock.Next() });
+
+        _storage.UseConnection(connection => connection.InsertRows(Schema.Hash,
+            new[] { "key", "field", "value", "expire_at", "removed", "ver" },
+            new[] { "String", "String", "Nullable(String)", "Nullable(DateTime64(6))", "UInt8", "UInt64" },
+            rows, _storage.Options.BatchWrites));
     }
 
     public override Dictionary<string, string>? GetAllEntriesFromHash(string key)

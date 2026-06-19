@@ -10,12 +10,24 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest # ubuntu runners ship with Docker, required by the Testcontainers tests
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - clickhouse: '24.12'   # validated baseline (minimum supported by Octonica 4.1.4)
+            experimental: false
+          - clickhouse: '25.3'    # newer line — informational
+            experimental: true
+          - clickhouse: 'latest'  # newest stable — informational, catches future drift
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
       DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
       # Ryuk (the Testcontainers reaper) is unnecessary on ephemeral CI VMs and can be flaky there.
       TESTCONTAINERS_RYUK_DISABLED: true
+      CLICKHOUSE_IMAGE: clickhouse/clickhouse-server:${{ matrix.clickhouse }}
 
     steps:
       - name: Checkout
@@ -35,15 +47,17 @@ jobs:
         run: dotnet build -c Release --no-restore -p:ContinuousIntegrationBuild=true
 
       - name: Test
-        # Pulls clickhouse/clickhouse-server:24.12 on first run; integration tests need a real server.
+        # Integration tests spin up CLICKHOUSE_IMAGE via Testcontainers.
         run: dotnet test -c Release --no-build --verbosity normal
 
       - name: Pack
-        # Not --no-build: a solution-level build doesn't leave the per-TFM library output
-        # where project-level "pack --no-build" looks (NU5026); let pack do an incremental build.
+        # Only the baseline leg packs/uploads. Not --no-build: a solution-level build doesn't
+        # leave the per-TFM library output where project-level "pack --no-build" looks (NU5026).
+        if: ${{ matrix.clickhouse == '24.12' }}
         run: dotnet pack src/Hangfire.ClickHouse/Hangfire.ClickHouse.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true -o artifacts
 
       - name: Upload package
+        if: ${{ matrix.clickhouse == '24.12' }}
         uses: actions/upload-artifact@v7
         with:
           name: nupkg

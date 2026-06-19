@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using Hangfire.Logging;
 using Hangfire.Server;
 using Octonica.ClickHouseClient;
 
@@ -12,6 +13,8 @@ namespace Hangfire.ClickHouse;
 /// </summary>
 internal sealed class ExpirationManager : IBackgroundProcess
 {
+    private static readonly ILog Logger = LogProvider.GetLogger(typeof(ExpirationManager));
+
     private readonly ClickHouseStorage _storage;
 
     public ExpirationManager(ClickHouseStorage storage) => _storage = storage;
@@ -90,12 +93,28 @@ internal sealed class ExpirationManager : IBackgroundProcess
 
         _storage.UseConnection(connection =>
         {
+            // Apply the configured lightweight-delete sync level for this connection.
+            connection.ExecuteNonQuery($"SET lightweight_deletes_sync = {_storage.Options.MutationsSync}");
+
             foreach (var statement in statements)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 connection.ExecuteNonQuery(statement);
             }
         });
+
+        if (_storage.Options.UseKeeperMap)
+        {
+            // Reap expired KeeperMap entries: stale lock owners and claims left by done jobs
+            // (whose job_queue row is removed above) or crashed workers.
+            _storage.UseConnection(connection =>
+            {
+                connection.ExecuteNonQuery($"DELETE FROM {s.DistributedLockKeeper} WHERE expire_at < now64(6)");
+                connection.ExecuteNonQuery($"DELETE FROM {s.QueueClaimKeeper} WHERE expire_at < now64(6)");
+            });
+        }
+
+        Logger.Debug("ClickHouse expiration manager completed a cleanup pass.");
     }
 
     public override string ToString() => "ClickHouse Expiration Manager";

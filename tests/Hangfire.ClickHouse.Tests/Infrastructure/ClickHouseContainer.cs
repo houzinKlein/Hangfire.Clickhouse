@@ -18,6 +18,13 @@ public sealed class ClickHouseContainer : IAsyncLifetime
     private const string User = "hangfire";
     private const string Password = "hangfire";
 
+    // Overridable via the CLICKHOUSE_IMAGE env var so CI can matrix across server versions.
+    // Octonica 4.1.4 requires 24.12+ (older versions dead-lock during the native handshake).
+    public static string Image =>
+        Environment.GetEnvironmentVariable("CLICKHOUSE_IMAGE") is { Length: > 0 } image
+            ? image
+            : "clickhouse/clickhouse-server:24.12";
+
     private IContainer _container = null!;
 
     public string Host { get; private set; } = "localhost";
@@ -30,7 +37,7 @@ public sealed class ClickHouseContainer : IAsyncLifetime
         // dead-locks during the hello/addendum exchange against 24.8 and older.
 #pragma warning disable CS0618 // generic ContainerBuilder() is fine for an ad-hoc image
         _container = new ContainerBuilder()
-            .WithImage("clickhouse/clickhouse-server:24.12")
+            .WithImage(Image)
             .WithPortBinding(9000, true)
             .WithPortBinding(8123, true)
             // Provision an explicit user so we don't depend on the image's default-user policy.

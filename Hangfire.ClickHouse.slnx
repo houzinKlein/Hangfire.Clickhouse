@@ -1,5 +1,10 @@
 <Solution>
-  <Folder Name="/src/" />
+  <Folder Name="/bench/">
+    <Project Path="bench/Hangfire.ClickHouse.Benchmark/Hangfire.ClickHouse.Benchmark.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Hangfire.ClickHouse/Hangfire.ClickHouse.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Hangfire.ClickHouse.Tests/Hangfire.ClickHouse.Tests.csproj" />
   </Folder>

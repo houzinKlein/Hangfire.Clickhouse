@@ -26,6 +26,9 @@ internal static class ClickHouseJobQueue
     {
         if (queues.Length == 0) return null;
 
+        if (storage.Options.UseKeeperMap)
+            return ClickHouseKeeperMap.TryClaim(storage, queues);
+
         var token = Guid.NewGuid().ToString("N");
         var threshold = DateTime.UtcNow - storage.Options.InvisibilityTimeout;
 
@@ -83,13 +86,22 @@ internal static class ClickHouseJobQueue
     }
 
     public static void Refresh(ClickHouseStorage storage, string queue, string jobId, string token, DateTime enqueuedAt)
-        => Write(storage, queue, jobId, enqueuedAt, fetchedAt: DateTime.UtcNow, token: token, removed: 0);
+    {
+        if (storage.Options.UseKeeperMap) { ClickHouseKeeperMap.RefreshClaim(storage, queue, jobId, token, enqueuedAt); return; }
+        Write(storage, queue, jobId, enqueuedAt, fetchedAt: DateTime.UtcNow, token: token, removed: 0);
+    }
 
     public static void Remove(ClickHouseStorage storage, string queue, string jobId, string token, DateTime enqueuedAt)
-        => Write(storage, queue, jobId, enqueuedAt, fetchedAt: DateTime.UtcNow, token: token, removed: 1);
+    {
+        if (storage.Options.UseKeeperMap) { ClickHouseKeeperMap.RemoveClaim(storage, queue, jobId); return; }
+        Write(storage, queue, jobId, enqueuedAt, fetchedAt: DateTime.UtcNow, token: token, removed: 1);
+    }
 
     public static void Requeue(ClickHouseStorage storage, string queue, string jobId, DateTime enqueuedAt)
-        => Write(storage, queue, jobId, enqueuedAt, fetchedAt: null, token: string.Empty, removed: 0);
+    {
+        if (storage.Options.UseKeeperMap) { ClickHouseKeeperMap.RequeueClaim(storage, jobId); return; }
+        Write(storage, queue, jobId, enqueuedAt, fetchedAt: null, token: string.Empty, removed: 0);
+    }
 
     private static void Write(ClickHouseStorage storage, string queue, string jobId, DateTime enqueuedAt,
         DateTime? fetchedAt, string token, byte removed)

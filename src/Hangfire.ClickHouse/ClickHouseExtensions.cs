@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Text;
 using Octonica.ClickHouseClient;
 using Octonica.ClickHouseClient.Exceptions;
 
@@ -55,6 +57,55 @@ internal static class ClickHouseExtensions
     {
         using var command = connection.CreateCommand(sql, parameters);
         return command.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// Inserts <paramref name="rows"/> into <paramref name="table"/>. When <paramref name="batch"/>
+    /// is true they go in as a single multi-row parameterized INSERT (fewer, larger MergeTree
+    /// parts); otherwise one INSERT per row. Each row's values align with <paramref name="columns"/>
+    /// / <paramref name="types"/>. (Multi-row keeps Octonica's parameter temp-tables, unlike async_insert.)
+    /// </summary>
+    public static void InsertRows(this ClickHouseConnection connection, string table,
+        string[] columns, string[] types, IReadOnlyList<object?[]> rows, bool batch)
+    {
+        if (rows.Count == 0) return;
+
+        var columnList = string.Join(", ", columns);
+
+        if (!batch)
+        {
+            foreach (var row in rows)
+            {
+                var ps = new (string, object?)[columns.Length];
+                var placeholders = new string[columns.Length];
+                for (var c = 0; c < columns.Length; c++)
+                {
+                    placeholders[c] = $"{{v{c}:{types[c]}}}";
+                    ps[c] = ($"v{c}", row[c]);
+                }
+                connection.ExecuteNonQuery($"INSERT INTO {table} ({columnList}) VALUES ({string.Join(", ", placeholders)})", ps);
+            }
+            return;
+        }
+
+        var sql = new StringBuilder();
+        sql.Append("INSERT INTO ").Append(table).Append(" (").Append(columnList).Append(") VALUES ");
+        var parameters = new List<(string, object?)>(rows.Count * columns.Length);
+        for (var r = 0; r < rows.Count; r++)
+        {
+            if (r > 0) sql.Append(", ");
+            sql.Append('(');
+            for (var c = 0; c < columns.Length; c++)
+            {
+                if (c > 0) sql.Append(", ");
+                var name = $"r{r}c{c}";
+                sql.Append('{').Append(name).Append(':').Append(types[c]).Append('}');
+                parameters.Add((name, rows[r][c]));
+            }
+            sql.Append(')');
+        }
+
+        connection.ExecuteNonQuery(sql.ToString(), parameters.ToArray());
     }
 
     public static object? ExecuteScalar(this ClickHouseConnection connection, string sql,

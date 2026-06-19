@@ -353,12 +353,13 @@ internal sealed class ClickHouseMonitoringApi : IMonitoringApi
 
     // ----- helpers -----
 
+    // FINAL collapses the ReplacingMergeTree to the current row per job_id at query time —
+    // cleaner and faster on large tables than a nested argMax/GROUP BY job_id. job_state is
+    // unpartitioned, so FINAL is straightforward.
     private long StateCount(string stateName)
     {
         return _storage.UseConnection(connection => connection.ExecuteCount(
-            $@"SELECT count() FROM (
-                   SELECT job_id, argMax(state_name, ver) AS sn FROM {Schema.JobState} GROUP BY job_id
-               ) WHERE sn = {{state:String}}",
+            $"SELECT count() FROM {Schema.JobState} FINAL WHERE state_name = {{state:String}}",
             ("state", stateName)));
     }
 
@@ -366,9 +367,7 @@ internal sealed class ClickHouseMonitoringApi : IMonitoringApi
     {
         var result = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         using var command = connection.CreateCommand(
-            $@"SELECT sn, count() FROM (
-                   SELECT job_id, argMax(state_name, ver) AS sn FROM {Schema.JobState} GROUP BY job_id
-               ) GROUP BY sn");
+            $"SELECT state_name, count() FROM {Schema.JobState} FINAL GROUP BY state_name");
         using var reader = command.ExecuteReader();
         while (reader.Read()) result[reader.GetStringOrEmpty(0)] = reader.ReadInt64(1);
         return result;
@@ -380,11 +379,9 @@ internal sealed class ClickHouseMonitoringApi : IMonitoringApi
         {
             var ids = new List<string>();
             using var command = connection.CreateCommand(
-                $@"SELECT job_id FROM (
-                       SELECT job_id, argMax(state_name, ver) AS sn, max(ver) AS seq
-                       FROM {Schema.JobState} GROUP BY job_id
-                   ) WHERE sn = {{state:String}}
-                   ORDER BY seq DESC LIMIT {{count:UInt64}} OFFSET {{from:UInt64}}",
+                $@"SELECT job_id FROM {Schema.JobState} FINAL
+                   WHERE state_name = {{state:String}}
+                   ORDER BY ver DESC LIMIT {{count:UInt64}} OFFSET {{from:UInt64}}",
                 ("state", stateName), ("count", (ulong)count), ("from", (ulong)Math.Max(0, from)));
             using var reader = command.ExecuteReader();
             while (reader.Read()) ids.Add(reader.GetStringOrEmpty(0));

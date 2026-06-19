@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Hangfire;
+using Hangfire.Logging;
 using Hangfire.Server;
 using Hangfire.Storage;
 using Octonica.ClickHouseClient;
@@ -17,6 +18,8 @@ namespace Hangfire.ClickHouse;
 internal sealed class CountersAggregator : IBackgroundProcess
 {
     private const string LockResource = "locks:counters-aggregator";
+
+    private static readonly ILog Logger = LogProvider.GetLogger(typeof(CountersAggregator));
 
     private readonly ClickHouseStorage _storage;
 
@@ -79,6 +82,9 @@ internal sealed class CountersAggregator : IBackgroundProcess
 
                 // Remove the consumed rows (server-side cutoff, mutation -> no parameters).
                 c.ExecuteNonQuery($"DELETE FROM {schema.Counter} WHERE created_at < now64(6) - toIntervalSecond(1)");
+
+                if (batches.Count > 0)
+                    Logger.DebugFormat("Counters aggregator folded {0} counter key(s).", batches.Count);
             });
         }
     }

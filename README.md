@@ -66,6 +66,11 @@ The connection string is the Octonica format (native protocol, default port **90
 | `JobExpirationCheckInterval` | `30m` | Expiration manager run interval. |
 | `CountersAggregateInterval` | `5m` | Counter aggregation interval. |
 | `DistributedLockExpiration` | `30m` | TTL for an acquired distributed lock (dead-lock guard). |
+| `BatchWrites` | `true` | Send a transaction's same-table inserts as one multi-row `INSERT` (fewer MergeTree parts). |
+| `UseKeeperMap` | `false` | Use the linearizable `KeeperMap` engine for the lock + queue claim (requires ClickHouse Keeper). |
+| `KeeperMapPathPrefix` | `/` | Keeper path prefix for `KeeperMap` tables; must match the server's `keeper_map_path_prefix`. |
+| `ConnectionPoolSize` | `32` | Max pooled ClickHouse connections. |
+| `MutationsSync` | `1` | `lightweight_deletes_sync` level for the expiration manager (0=async, 1=current, 2=all). |
 
 ## Design & guarantees
 
@@ -82,6 +87,16 @@ The connection string is the Octonica format (native protocol, default port **90
   jobs idempotent.
 * **Distributed locks** use the same optimistic-claim pattern with a TTL, so they are
   best-effort mutual exclusion rather than a hard lock.
+* **Stronger guarantees (opt-in):** set `UseKeeperMap = true` (and configure ClickHouse
+  Keeper + `keeper_map_path_prefix` on the server) to back the lock and the queue claim with
+  the linearizable `KeeperMap` engine — true mutual exclusion and an atomic dequeue. The
+  storage falls back to the optimistic path when this is off.
+* **Writes** are batched per transaction (`BatchWrites`) into multi-row inserts to limit
+  MergeTree part growth. `async_insert` is deliberately not used — Octonica passes parameters
+  as temporary tables that don't survive ClickHouse's deferred async-insert execution.
+* **Partitioning:** `job`, `job_queue`, `state`, and `counter` are partitioned by insert-time
+  month. Per-job retention is dynamic, so expiration stays `DELETE`-based (no `DROP PARTITION`,
+  which would drop still-live old jobs).
 * **Expiration**: every expirable record carries `expire_at`. A native ClickHouse `TTL`
   reclaims space on merges, and the expiration manager additionally issues lightweight
   `DELETE`s on the configured interval.

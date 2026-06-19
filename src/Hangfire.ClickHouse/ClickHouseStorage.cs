@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Hangfire.Logging;
 using Hangfire.Server;
 using Hangfire.Storage;
 using Octonica.ClickHouseClient;
@@ -11,6 +12,8 @@ namespace Hangfire.ClickHouse;
 /// </summary>
 public class ClickHouseStorage : JobStorage, IDisposable
 {
+    private static readonly ILog Logger = LogProvider.GetLogger(typeof(ClickHouseStorage));
+
     private readonly ClickHouseConnectionFactory _factory;
     private readonly string _installConnectionString;
     private int _disposed;
@@ -28,14 +31,16 @@ public class ClickHouseStorage : JobStorage, IDisposable
 
         var (runtime, install, database) = Resolve(connectionString, options.DatabaseName);
         _installConnectionString = install;
-        _factory = new ClickHouseConnectionFactory(runtime);
-        Schema = new ClickHouseSchema(database, options.TablePrefix);
+        _factory = new ClickHouseConnectionFactory(runtime, options.ConnectionPoolSize);
+        Schema = new ClickHouseSchema(database, options.TablePrefix, options.KeeperMapPathPrefix);
 
         if (options.PrepareSchemaIfNecessary)
         {
             using var connection = new ClickHouseConnection(_installConnectionString);
             connection.Open();
-            ClickHouseObjectsInstaller.InstallAsync(connection, Schema).GetAwaiter().GetResult();
+            ClickHouseObjectsInstaller.InstallAsync(connection, Schema, options.UseKeeperMap).GetAwaiter().GetResult();
+            Logger.InfoFormat("ClickHouse schema v{0} ready in database '{1}' (keeperMap={2}).",
+                ClickHouseObjectsInstaller.SchemaVersion, database, options.UseKeeperMap);
         }
     }
 
@@ -68,6 +73,17 @@ public class ClickHouseStorage : JobStorage, IDisposable
     }
 #pragma warning restore CS0618
 
+    public override void WriteOptionsToLog(ILog logger)
+    {
+        logger.Info("Using the following options for ClickHouse job storage:");
+        logger.InfoFormat("    Database: {0}, TablePrefix: '{1}'", Schema.Database, Options.TablePrefix);
+        logger.InfoFormat("    QueuePollInterval: {0}, InvisibilityTimeout: {1}", Options.QueuePollInterval, Options.InvisibilityTimeout);
+        logger.InfoFormat("    JobExpirationCheckInterval: {0}, CountersAggregateInterval: {1}",
+            Options.JobExpirationCheckInterval, Options.CountersAggregateInterval);
+        logger.InfoFormat("    BatchWrites: {0}, UseKeeperMap: {1}, ConnectionPoolSize: {2}, MutationsSync: {3}",
+            Options.BatchWrites, Options.UseKeeperMap, Options.ConnectionPoolSize, Options.MutationsSync);
+    }
+
     public override string ToString() => $"ClickHouse: {Schema.Database}";
 
     public void Dispose()
@@ -79,7 +95,16 @@ public class ClickHouseStorage : JobStorage, IDisposable
 
     private static (string Runtime, string Install, string Database) Resolve(string connectionString, string? databaseOverride)
     {
-        var source = new ClickHouseConnectionStringBuilder(connectionString);
+        ClickHouseConnectionStringBuilder source;
+        try
+        {
+            source = new ClickHouseConnectionStringBuilder(connectionString);
+        }
+        catch (Exception ex)
+        {
+            throw new ArgumentException("The ClickHouse connection string could not be parsed. " +
+                "Expected Octonica native-protocol format, e.g. 'Host=...;Port=9000;User=...;Password=...;Database=...'.", nameof(connectionString), ex);
+        }
 
         var database = !string.IsNullOrWhiteSpace(databaseOverride)
             ? databaseOverride!

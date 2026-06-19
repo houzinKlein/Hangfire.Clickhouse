@@ -13,17 +13,23 @@ internal sealed class ClickHouseSchema
 {
     private readonly string _database;
     private readonly string _prefix;
+    private readonly string _keeperPrefix;
 
-    public ClickHouseSchema(string database, string prefix)
+    public ClickHouseSchema(string database, string prefix, string keeperMapPathPrefix = "/")
     {
         _database = database;
         _prefix = prefix ?? string.Empty;
+        _keeperPrefix = string.IsNullOrEmpty(keeperMapPathPrefix) ? "/" : keeperMapPathPrefix.TrimEnd('/');
+        if (_keeperPrefix.Length == 0) _keeperPrefix = ""; // root
     }
 
     public string Database => _database;
 
     /// <summary>Quoted, database-qualified table name, e.g. <c>`hangfire`.`hf_job`</c>.</summary>
     public string Table(string name) => $"`{_database}`.`{_prefix}{name}`";
+
+    /// <summary>ZooKeeper/Keeper path for a KeeperMap-backed table.</summary>
+    public string KeeperPath(string name) => $"{_keeperPrefix}/{_database}/{_prefix}{name}";
 
     public string Schema => Table("schema");
     public string Job => Table("job");
@@ -39,6 +45,10 @@ internal sealed class ClickHouseSchema
     public string Counter => Table("counter");
     public string AggregatedCounter => Table("aggregated_counter");
     public string DistributedLock => Table("distributed_lock");
+
+    // KeeperMap-backed tables (only created when UseKeeperMap is enabled).
+    public string DistributedLockKeeper => Table("distributed_lock_kv");
+    public string QueueClaimKeeper => Table("queue_claim_kv");
 }
 
 /// <summary>
@@ -46,9 +56,9 @@ internal sealed class ClickHouseSchema
 /// </summary>
 internal static class ClickHouseObjectsInstaller
 {
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
 
-    public static async Task InstallAsync(ClickHouseConnection connection, ClickHouseSchema schema, CancellationToken cancellationToken = default)
+    public static async Task InstallAsync(ClickHouseConnection connection, ClickHouseSchema schema, bool useKeeperMap = false, CancellationToken cancellationToken = default)
     {
         // The database itself.
         await ExecuteAsync(connection, $"CREATE DATABASE IF NOT EXISTS `{schema.Database}`", cancellationToken).ConfigureAwait(false);
@@ -58,9 +68,38 @@ internal static class ClickHouseObjectsInstaller
             await ExecuteAsync(connection, statement, cancellationToken).ConfigureAwait(false);
         }
 
+        if (useKeeperMap)
+        {
+            foreach (var statement in KeeperMapStatements(schema))
+            {
+                await ExecuteAsync(connection, statement, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         // Record the installed schema version (idempotent; we only ever read max(version)).
         await ExecuteAsync(connection,
             $"INSERT INTO {schema.Schema} (version) VALUES ({SchemaVersion})", cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// KeeperMap-backed tables for the linearizable lock and queue claim. Requires the server
+    /// to have <c>keeper_map_path_prefix</c> configured (and Keeper/ZooKeeper available).
+    /// </summary>
+    public static IEnumerable<string> KeeperMapStatements(ClickHouseSchema s)
+    {
+        yield return $@"CREATE TABLE IF NOT EXISTS {s.DistributedLockKeeper} (
+            resource String,
+            owner String,
+            expire_at DateTime64(6,'UTC')
+        ) ENGINE = KeeperMap('{s.KeeperPath("distributed_lock")}') PRIMARY KEY resource";
+
+        yield return $@"CREATE TABLE IF NOT EXISTS {s.QueueClaimKeeper} (
+            job_id String,
+            queue String,
+            owner String,
+            enqueued_at DateTime64(6,'UTC'),
+            expire_at DateTime64(6,'UTC')
+        ) ENGINE = KeeperMap('{s.KeeperPath("queue_claim")}') PRIMARY KEY job_id";
     }
 
     public static IEnumerable<string> CreateStatements(ClickHouseSchema s)
@@ -72,13 +111,16 @@ internal static class ClickHouseObjectsInstaller
         ) ENGINE = MergeTree ORDER BY version";
 
         // Immutable job definition (inserted once; ver guards against accidental duplicates).
+        // Partitioned by creation month for pruning and smaller merges. NOTE: per-job retention
+        // is dynamic (set via job_expiration), so expiration stays DELETE-based — DROP PARTITION
+        // can't be used here without dropping still-live old jobs.
         yield return $@"CREATE TABLE IF NOT EXISTS {s.Job} (
             id String,
             invocation_data String,
             arguments String,
             created_at DateTime64(6,'UTC'),
             ver UInt64
-        ) ENGINE = ReplacingMergeTree(ver) ORDER BY id";
+        ) ENGINE = ReplacingMergeTree(ver) PARTITION BY toYYYYMM(created_at) ORDER BY id";
 
         // Current state pointer (mutated by inserting a newer version).
         yield return $@"CREATE TABLE IF NOT EXISTS {s.JobState} (
@@ -111,7 +153,7 @@ internal static class ClickHouseObjectsInstaller
             created_at DateTime64(6,'UTC'),
             data String,
             ver UInt64
-        ) ENGINE = MergeTree ORDER BY (job_id, created_at)";
+        ) ENGINE = MergeTree PARTITION BY toYYYYMM(created_at) ORDER BY (job_id, created_at)";
 
         // Queue entries (claimed by inserting a newer version with a fetch token).
         yield return $@"CREATE TABLE IF NOT EXISTS {s.JobQueue} (
@@ -122,7 +164,7 @@ internal static class ClickHouseObjectsInstaller
             fetch_token String,
             removed UInt8,
             ver UInt64
-        ) ENGINE = ReplacingMergeTree(ver) ORDER BY (queue, job_id)";
+        ) ENGINE = ReplacingMergeTree(ver) PARTITION BY toYYYYMM(enqueued_at) ORDER BY (queue, job_id)";
 
         // Servers.
         yield return $@"CREATE TABLE IF NOT EXISTS {s.Server} (
@@ -171,7 +213,7 @@ internal static class ClickHouseObjectsInstaller
             value Int64,
             expire_at Nullable(DateTime64(6,'UTC')),
             created_at DateTime64(6,'UTC') DEFAULT now64(6)
-        ) ENGINE = MergeTree ORDER BY key";
+        ) ENGINE = MergeTree PARTITION BY toYYYYMM(created_at) ORDER BY key";
 
         // Folded counters: SummingMergeTree collapses same-key rows; reads still sum() to
         // cover rows not yet merged.

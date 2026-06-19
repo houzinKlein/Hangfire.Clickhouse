@@ -15,14 +15,18 @@ internal sealed class ClickHouseConnectionFactory : IDisposable
 {
     private readonly string _connectionString;
     private readonly int _maxPoolSize;
+    private readonly Action<ClickHouseConnection>? _onOpen;
     private readonly ConcurrentBag<ClickHouseConnection> _pool = new();
     private int _count;
     private int _disposed;
 
-    public ClickHouseConnectionFactory(string connectionString, int maxPoolSize = 32)
+    // onOpen is invoked once on each newly-opened connection (e.g. to apply session settings).
+    // Pooled connections keep their session settings, so it does not run on reuse.
+    public ClickHouseConnectionFactory(string connectionString, int maxPoolSize = 32, Action<ClickHouseConnection>? onOpen = null)
     {
         _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-        _maxPoolSize = maxPoolSize;
+        _maxPoolSize = maxPoolSize > 0 ? maxPoolSize : 32;
+        _onOpen = onOpen;
     }
 
     /// <summary>Rents a connection. Dispose the returned lease to return it to the pool.</summary>
@@ -39,20 +43,21 @@ internal sealed class ClickHouseConnectionFactory : IDisposable
             SafeDispose(pooled);
         }
 
-        var connection = new ClickHouseConnection(_connectionString);
-        connection.Open();
-        return new Lease(this, connection);
+        return new Lease(this, OpenNew());
     }
 
     /// <summary>
     /// Opens a standalone connection that is NOT returned to the pool. Used for long-lived
     /// owners (e.g. the schema installer) where pooling brings no benefit.
     /// </summary>
-    public ClickHouseConnection CreateAndOpen()
+    public ClickHouseConnection CreateAndOpen() => OpenNew();
+
+    private ClickHouseConnection OpenNew()
     {
         ThrowIfDisposed();
         var connection = new ClickHouseConnection(_connectionString);
         connection.Open();
+        _onOpen?.Invoke(connection);
         return connection;
     }
 

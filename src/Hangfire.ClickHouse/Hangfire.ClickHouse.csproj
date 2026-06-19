@@ -9,11 +9,11 @@
   <!-- NuGet package metadata -->
   <PropertyGroup>
     <PackageId>Hangfire.ClickHouse</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>houzinKlein</Authors>
     <Copyright>Copyright © houzinKlein</Copyright>
     <Title>Hangfire ClickHouse Storage</Title>
-    <Description>ClickHouse job storage implementation for Hangfire. Provides JobStorage, connection, write-only transaction, monitoring API, a polling job queue, and background maintenance (expiration, counter aggregation) on top of the Octonica ClickHouse client.</Description>
+    <Description>ClickHouse job storage for Hangfire: JobStorage, connection, write-only transaction, monitoring API, a polling job queue, and background maintenance (expiration, counter aggregation) on the Octonica ClickHouse client. Requires ClickHouse 24.12+. Note: ClickHouse is an OLAP store — the queue is at-least-once and locks are best-effort unless the opt-in KeeperMap path is enabled; keep jobs idempotent.</Description>
     <PackageTags>Hangfire;ClickHouse;Storage;Jobs;Background;Queue;Octonica</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -22,7 +22,7 @@
     <PackageProjectUrl>https://github.com/houzinKlein/Hangfire.Clickhouse</PackageProjectUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>Initial 0.1.0 preview: full Hangfire storage SPI on ClickHouse. Pre-1.0 — the API and schema may change before a stable 1.0 release.</PackageReleaseNotes>
+    <PackageReleaseNotes>0.2.0: client-side write batching, table partitioning, opt-in KeeperMap lock/queue, FINAL-based dashboard reads, logging, and more options (BatchWrites, UseKeeperMap, ConnectionPoolSize, MutationsSync). Schema v2 (fresh installs). See CHANGELOG.md. Pre-1.0 — API/schema may still change.</PackageReleaseNotes>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <!-- SourceLink: embed repo + commit so consumers can debug into the package.

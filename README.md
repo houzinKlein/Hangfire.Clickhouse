@@ -1,7 +1,7 @@
 # HangfireCH
 
 [![CI](https://github.com/houzinKlein/Hangfire.Clickhouse/actions/workflows/ci.yml/badge.svg)](https://github.com/houzinKlein/Hangfire.Clickhouse/actions/workflows/ci.yml)
-[![NuGet](https://img.shields.io/nuget/v/HangfireCH.svg)](https://www.nuget.org/packages/HangfireCH)
+[![NuGet](https://img.shields.io/nuget/v/HGF.ClickHouse.svg)](https://www.nuget.org/packages/HGF.ClickHouse)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ClickHouse job storage for [Hangfire](https://www.hangfire.io/). It implements the full
@@ -22,12 +22,13 @@ aggregation), on top of the [Octonica ClickHouse client](https://github.com/Octo
 ## Install
 
 ```
-dotnet add package HangfireCH
+dotnet add package HGF.ClickHouse
 ```
 
-Targets `net10.0` and `net8.0`. The package ID, assembly, and namespace are all **`HangfireCH`**
-(the `Hangfire.*` prefix is reserved on nuget.org). Use `using HangfireCH;` for the types and
-`UseClickHouseStorage(...)` (the extension lives in the `Hangfire` namespace).
+Targets `net10.0` and `net8.0`. The NuGet package ID is **`HGF.ClickHouse`** (the `Hangfire.*`
+prefix is reserved on nuget.org); the assembly and namespace are **`HangfireCH`**. Use
+`using HangfireCH;` for the types and `UseClickHouseStorage(...)` (the extension lives in the
+`Hangfire` namespace).
 
 ## Usage
 

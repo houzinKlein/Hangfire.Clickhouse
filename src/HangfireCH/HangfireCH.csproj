@@ -8,9 +8,9 @@
 
   <!-- NuGet package metadata -->
   <PropertyGroup>
-    <!-- Published as 'HangfireCH': the 'Hangfire.' ID prefix is reserved on nuget.org.
-         Package id, assembly, and namespace are all 'HangfireCH'. -->
-    <PackageId>HangfireCH</PackageId>
+    <!-- The 'Hangfire.' ID prefix is reserved on nuget.org, so we publish under 'HGF.ClickHouse'.
+         Package id differs from the assembly/namespace ('HangfireCH'), which is fine. -->
+    <PackageId>HGF.ClickHouse</PackageId>
     <Version>0.3.0</Version>
     <Authors>houzinKlein</Authors>
     <Copyright>Copyright © houzinKlein</Copyright>

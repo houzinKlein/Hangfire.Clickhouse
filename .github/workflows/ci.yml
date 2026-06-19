@@ -54,7 +54,7 @@ jobs:
         # Only the baseline leg packs/uploads. Not --no-build: a solution-level build doesn't
         # leave the per-TFM library output where project-level "pack --no-build" looks (NU5026).
         if: ${{ matrix.clickhouse == '24.12' }}
-        run: dotnet pack src/Hangfire.ClickHouse/Hangfire.ClickHouse.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true -o artifacts
+        run: dotnet pack src/HangfireCH/HangfireCH.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true -o artifacts
 
       - name: Upload package
         if: ${{ matrix.clickhouse == '24.12' }}

@@ -1,4 +1,4 @@
-# Hangfire.ClickHouse
+# HangfireCH
 
 [![CI](https://github.com/houzinKlein/Hangfire.Clickhouse/actions/workflows/ci.yml/badge.svg)](https://github.com/houzinKlein/Hangfire.Clickhouse/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/HangfireCH.svg)](https://www.nuget.org/packages/HangfireCH)
@@ -25,15 +25,15 @@ aggregation), on top of the [Octonica ClickHouse client](https://github.com/Octo
 dotnet add package HangfireCH
 ```
 
-Targets `net10.0` and `net8.0`. The NuGet package ID is **`HangfireCH`** (the `Hangfire.*`
-prefix is reserved on nuget.org); the assembly and namespace remain `Hangfire.ClickHouse`, so
-your `using Hangfire.ClickHouse;` and `UseClickHouseStorage(...)` code is unchanged.
+Targets `net10.0` and `net8.0`. The package ID, assembly, and namespace are all **`HangfireCH`**
+(the `Hangfire.*` prefix is reserved on nuget.org). Use `using HangfireCH;` for the types and
+`UseClickHouseStorage(...)` (the extension lives in the `Hangfire` namespace).
 
 ## Usage
 
 ```csharp
 using Hangfire;
-using Hangfire.ClickHouse;
+using HangfireCH;
 
 GlobalConfiguration.Configuration
     .UseClickHouseStorage("Host=localhost;Port=9000;User=default;Database=hangfire");

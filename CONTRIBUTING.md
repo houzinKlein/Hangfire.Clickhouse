@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in improving Hangfire.ClickHouse!
+Thanks for your interest in improving HangfireCH!
 
 ## Prerequisites
 - .NET SDK 10 (the projects multi-target `net10.0` and `net8.0`).
@@ -20,7 +20,7 @@ CLICKHOUSE_IMAGE=clickhouse/clickhouse-server:latest dotnet test -c Release
 ## Benchmark
 ```bash
 HANGFIRE_CLICKHOUSE="Host=localhost;Port=9000;User=default;Password=;Database=default" \
-  dotnet run -c Release --project bench/Hangfire.ClickHouse.Benchmark -- 5000
+  dotnet run -c Release --project bench/HangfireCH.Benchmark -- 5000
 ```
 
 ## Conventions worth knowing (ClickHouse + Octonica)

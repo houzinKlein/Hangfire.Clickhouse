@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/bench/">
+    <Project Path="bench/HangfireCH.Benchmark/HangfireCH.Benchmark.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/HangfireCH/HangfireCH.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HangfireCH.Tests/HangfireCH.Tests.csproj" />
+  </Folder>
+</Solution>

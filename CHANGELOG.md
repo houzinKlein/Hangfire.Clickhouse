@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor versions may carry breaking changes).
 
+## [0.3.0]
+
+### Changed
+- **Assembly and namespace renamed to `HangfireCH`** (were `Hangfire.ClickHouse`) so the package
+  ID, assembly, and namespace all match. Update `using Hangfire.ClickHouse;` to `using HangfireCH;`;
+  `UseClickHouseStorage(...)` is still found via `using Hangfire;`. Breaking, but pre-1.0.
+
 ## [0.2.1]
 
 ### Changed

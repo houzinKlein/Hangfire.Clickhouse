@@ -31,18 +31,27 @@ public class ClickHouseStorage : JobStorage, IDisposable
 
         var (runtime, install, database) = Resolve(connectionString, options.DatabaseName);
         _installConnectionString = install;
-        _factory = new ClickHouseConnectionFactory(runtime, options.ConnectionPoolSize);
+        _factory = new ClickHouseConnectionFactory(runtime, options.ConnectionPoolSize, ConfigureSession);
         Schema = new ClickHouseSchema(database, options.TablePrefix, options.KeeperMapPathPrefix);
 
         if (options.PrepareSchemaIfNecessary)
         {
             using var connection = new ClickHouseConnection(_installConnectionString);
             connection.Open();
+            ConfigureSession(connection);
             ClickHouseObjectsInstaller.InstallAsync(connection, Schema, options.UseKeeperMap).GetAwaiter().GetResult();
             Logger.InfoFormat("ClickHouse schema v{0} ready in database '{1}' (keeperMap={2}).",
                 ClickHouseObjectsInstaller.SchemaVersion, database, options.UseKeeperMap);
         }
     }
+
+    // Runs once per newly-opened connection (session settings persist on pooled reuse).
+    // Forces async_insert off: servers that default it on (async_insert=1 in a profile) break
+    // Octonica's parameterized inserts — the params travel as a temporary table that no longer
+    // exists when the deferred async insert is flushed, surfacing as
+    // "Unknown table ... While executing WaitForAsyncInsert".
+    private static void ConfigureSession(ClickHouseConnection connection)
+        => connection.ExecuteNonQuery("SET async_insert = 0");
 
     internal ClickHouseStorageOptions Options { get; }
 

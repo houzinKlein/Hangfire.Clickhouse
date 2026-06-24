@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor versions may carry breaking changes).
 
+## [0.3.1]
+
+### Fixed
+- **`Unknown table expression identifier '_…' … While executing WaitForAsyncInsert`** on servers
+  that enable `async_insert` by default (a profile/user setting). Octonica sends query parameters as
+  a temporary table that no longer exists when ClickHouse flushes a deferred async insert, so every
+  parameterized insert (distributed lock, jobs, hashes, …) failed. The storage now forces
+  `async_insert = 0` on each connection (via the connection factory's open hook and the schema
+  installer), independent of the server default. Regression-tested against a server configured with
+  `async_insert=1`.
+
 ## [0.3.0]
 
 ### Changed

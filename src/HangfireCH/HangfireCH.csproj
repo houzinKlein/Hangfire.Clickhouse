@@ -11,7 +11,7 @@
     <!-- The 'Hangfire.' ID prefix is reserved on nuget.org, so we publish under 'HGF.ClickHouse'.
          Package id differs from the assembly/namespace ('HangfireCH'), which is fine. -->
     <PackageId>HGF.ClickHouse</PackageId>
-    <Version>0.3.1</Version>
+    <Version>0.3.2</Version>
     <Authors>houzinKlein</Authors>
     <Copyright>Copyright © houzinKlein</Copyright>
     <Title>Hangfire ClickHouse Storage</Title>
@@ -24,7 +24,7 @@
     <PackageProjectUrl>https://github.com/houzinKlein/Hangfire.Clickhouse</PackageProjectUrl>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageReleaseNotes>0.3.1: fix "Unknown table … While executing WaitForAsyncInsert" on servers that default async_insert=1 — the storage now forces async_insert=0 per connection (Octonica parameterized inserts can't survive deferred async execution). 0.3.0: assembly and namespace renamed to HangfireCH (was Hangfire.ClickHouse) so package, assembly, and namespace match — update `using Hangfire.ClickHouse;` to `using HangfireCH;`. 0.2.0: client-side write batching, table partitioning, opt-in KeeperMap lock/queue, FINAL-based dashboard reads, logging, and more options (BatchWrites, UseKeeperMap, ConnectionPoolSize, MutationsSync). Schema v2 (fresh installs). See CHANGELOG.md. Pre-1.0 — API/schema may still change.</PackageReleaseNotes>
+    <PackageReleaseNotes>0.3.2: harden against server-side defaults — pin insert_deduplicate=0 (no silent block dedup on replicated clusters) and session_timezone=UTC per connection, and let the dashboard's analytical FINAL scans opt out of max_execution_time. 0.3.1: fix "Unknown table … While executing WaitForAsyncInsert" on servers that default async_insert=1 — the storage now forces async_insert=0 per connection (Octonica parameterized inserts can't survive deferred async execution). 0.3.0: assembly and namespace renamed to HangfireCH (was Hangfire.ClickHouse) so package, assembly, and namespace match — update `using Hangfire.ClickHouse;` to `using HangfireCH;`. 0.2.0: client-side write batching, table partitioning, opt-in KeeperMap lock/queue, FINAL-based dashboard reads, logging, and more options (BatchWrites, UseKeeperMap, ConnectionPoolSize, MutationsSync). Schema v2 (fresh installs). See CHANGELOG.md. Pre-1.0 — API/schema may still change.</PackageReleaseNotes>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
 
     <!-- SourceLink: embed repo + commit so consumers can debug into the package.

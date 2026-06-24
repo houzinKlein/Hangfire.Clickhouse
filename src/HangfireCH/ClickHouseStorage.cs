@@ -45,13 +45,19 @@ public class ClickHouseStorage : JobStorage, IDisposable
         }
     }
 
-    // Runs once per newly-opened connection (session settings persist on pooled reuse).
-    // Forces async_insert off: servers that default it on (async_insert=1 in a profile) break
-    // Octonica's parameterized inserts — the params travel as a temporary table that no longer
-    // exists when the deferred async insert is flushed, surfacing as
-    // "Unknown table ... While executing WaitForAsyncInsert".
+    // Runs once per newly-opened connection (session settings persist on pooled reuse), pinning
+    // the settings this storage depends on so a server-side profile default can't break it:
+    //   async_insert = 0       — servers that default it on break Octonica's parameterized inserts:
+    //                            the params travel as a temporary table that no longer exists when
+    //                            the deferred insert is flushed ("Unknown table ... WaitForAsyncInsert").
+    //   insert_deduplicate = 0 — on Replicated*MergeTree (clusters) ClickHouse drops "duplicate"
+    //                            insert blocks; our append-only counter deltas and version rows must
+    //                            never be silently de-duplicated.
+    //   session_timezone = UTC — all timestamps are DateTime64('UTC'); pin UTC so now64()/parsing
+    //                            stay deterministic regardless of the server's local time zone.
     private static void ConfigureSession(ClickHouseConnection connection)
-        => connection.ExecuteNonQuery("SET async_insert = 0");
+        => connection.ExecuteNonQuery(
+            "SET async_insert = 0, insert_deduplicate = 0, session_timezone = 'UTC'");
 
     internal ClickHouseStorageOptions Options { get; }
 

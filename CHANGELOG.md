@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/) (pre-1.0: minor versions may carry breaking changes).
 
+## [0.3.2]
+
+### Changed (hardening against server-side setting defaults)
+- Pin **`insert_deduplicate = 0`** per connection. On `Replicated*MergeTree` (clusters), ClickHouse
+  drops "duplicate" insert blocks; the append-only counter deltas and version rows must never be
+  silently de-duplicated. No-op on single-node `MergeTree`.
+- Pin **`session_timezone = 'UTC'`** per connection so `now64()`/timestamp handling stays
+  deterministic regardless of the server's local time zone (all columns are `DateTime64('UTC')`).
+- Dashboard's analytical `JobState FINAL` scans now run with **`max_execution_time = 0`** so a strict
+  server-side limit can't abort the dashboard on large tables. The hot lock/queue paths keep the
+  server default.
+
 ## [0.3.1]
 
 ### Fixed

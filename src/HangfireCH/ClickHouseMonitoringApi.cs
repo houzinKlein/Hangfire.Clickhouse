@@ -356,10 +356,16 @@ internal sealed class ClickHouseMonitoringApi : IMonitoringApi
     // FINAL collapses the ReplacingMergeTree to the current row per job_id at query time —
     // cleaner and faster on large tables than a nested argMax/GROUP BY job_id. job_state is
     // unpartitioned, so FINAL is straightforward.
+    //
+    // These dashboard scans are analytical (full-table FINAL), so they opt out of the server's
+    // max_execution_time — a strict transactional limit would otherwise abort the dashboard on
+    // large tables. Only these reads relax it; the hot lock/queue paths keep the server default.
+    private const string NoScanTimeout = " SETTINGS max_execution_time = 0";
+
     private long StateCount(string stateName)
     {
         return _storage.UseConnection(connection => connection.ExecuteCount(
-            $"SELECT count() FROM {Schema.JobState} FINAL WHERE state_name = {{state:String}}",
+            $"SELECT count() FROM {Schema.JobState} FINAL WHERE state_name = {{state:String}}" + NoScanTimeout,
             ("state", stateName)));
     }
 
@@ -367,7 +373,7 @@ internal sealed class ClickHouseMonitoringApi : IMonitoringApi
     {
         var result = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
         using var command = connection.CreateCommand(
-            $"SELECT state_name, count() FROM {Schema.JobState} FINAL GROUP BY state_name");
+            $"SELECT state_name, count() FROM {Schema.JobState} FINAL GROUP BY state_name" + NoScanTimeout);
         using var reader = command.ExecuteReader();
         while (reader.Read()) result[reader.GetStringOrEmpty(0)] = reader.ReadInt64(1);
         return result;
@@ -381,7 +387,7 @@ internal sealed class ClickHouseMonitoringApi : IMonitoringApi
             using var command = connection.CreateCommand(
                 $@"SELECT job_id FROM {Schema.JobState} FINAL
                    WHERE state_name = {{state:String}}
-                   ORDER BY ver DESC LIMIT {{count:UInt64}} OFFSET {{from:UInt64}}",
+                   ORDER BY ver DESC LIMIT {{count:UInt64}} OFFSET {{from:UInt64}}" + NoScanTimeout,
                 ("state", stateName), ("count", (ulong)count), ("from", (ulong)Math.Max(0, from)));
             using var reader = command.ExecuteReader();
             while (reader.Read()) ids.Add(reader.GetStringOrEmpty(0));
